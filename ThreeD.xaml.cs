@@ -24,7 +24,6 @@ namespace MidiApp
         [DllImport("User32.dll")]
         private static extern bool SetCursorPos(int X, int Y);
 
-
         public ThreeD()
         {
             InitializeComponent();
@@ -35,8 +34,21 @@ namespace MidiApp
         private Material m_spotMaterial;
         private Material m_spotMaterialSelected;
         private bool m_mousedown = false;
-        //private Visual3D m_beam2;
         CameraState[] CameraSaveStates = new CameraState[5];
+
+        public void setActive(bool active)
+        {
+            if (active)
+            {
+                ActiveMarker.Stroke = Brushes.Red;
+                ActiveMarker.StrokeThickness = 4;
+            }
+            else
+            {
+                ActiveMarker.Stroke = null;
+            }
+
+        }
 
         public void grab()
         {
@@ -148,6 +160,22 @@ namespace MidiApp
             return 0.0;
         }
 
+        public double Macro_moveSpot(int spot_number)
+        {
+            var p = viewport3D.Camera.Position;
+            var v = viewport3D.Camera.LookDirection;
+
+            viewport3D.Camera.Position = MainWindow.m_spots[spot_number].Location;
+
+            var nv = Spherical.FromSpherical(1, MainWindow.m_spots[spot_number].Tilt, MainWindow.m_spots[spot_number].Pan);
+            viewport3D.Camera.LookDirection = (Vector3D)nv;
+
+            double moved = MoveSpot(spot_number, new Point(viewport3D.ActualWidth / 2, viewport3D.ActualHeight / 2));
+
+            viewport3D.Camera.Position = p;
+            viewport3D.Camera.LookDirection = v;
+            return moved;
+        }
         public double DMX_moveSpot(int spot_number)
         {
             if (!m_mousedown && (spot_number<0))

@@ -81,6 +81,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Follow_Spot.cs" />
     <Compile Include="Spherical.cs" />
     <Compile Include="MainViewModel.cs" />
     <Compile Include="ThreeD.xaml.cs">

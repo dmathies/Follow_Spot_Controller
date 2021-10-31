@@ -5,10 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:HelixToolkit="clr-namespace:HelixToolkit.Wpf;assembly=HelixToolkit.Wpf"
         xmlns:helix="clr-namespace:HelixToolkit.Wpf;assembly=HelixToolkit.Wpf" 
-
         xmlns:local="clr-namespace:MidiApp"
         mc:Ignorable="d"
-        Title="3D Followspot Tracker" Height="542" Width="800" Activated="Window_Activated" Topmost="True" KeyDown="ThreeD1_KeyDown" Closed="ThreeD1_Closed">
+        Title="3D Followspot Tracker" Height="1000" Width="1200" Activated="Window_Activated" Topmost="True" KeyDown="ThreeD1_KeyDown" Closed="ThreeD1_Closed">
+
     <Window.Background>
         <SolidColorBrush Color="{DynamicResource {x:Static SystemColors.MenuTextColorKey}}"/>
     </Window.Background>
@@ -16,10 +16,9 @@
     <Window.DataContext>
         <local:MainViewModel />
     </Window.DataContext>
-
     <Grid>
-            
-        <helix:HelixViewport3D x:Name="viewport3D" Grid.Row="1" MouseMove="HelixViewport3D_MouseMove" MouseDown="viewport3D_MouseDown" MouseUp="HelixViewport3D_MouseUp">
+        <Rectangle x:Name="ActiveMarker" StrokeThickness="4"/>
+        <helix:HelixViewport3D x:Name="viewport3D" Grid.Row="1" MouseMove="HelixViewport3D_MouseMove" MouseDown="viewport3D_MouseDown" MouseUp="HelixViewport3D_MouseUp" Margin="4">
             <helix:DefaultLights/>
 
             <!--  The content of this visual is defined in MainViewModel.cs  -->

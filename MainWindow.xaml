@@ -35,7 +35,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="100*"/>
                 </Grid.RowDefinitions>
-                <Label x:Name="label" Content="MQ IP Address:" VerticalAlignment="Center" Margin="0" Height="16" HorizontalContentAlignment="Stretch"/>
+                <Label x:Name="label" Content="M-L IP Address:" VerticalAlignment="Center" Margin="0" Height="16" HorizontalContentAlignment="Stretch"/>
                 <Label x:Name="ipInputMQ" Margin="0,2,26,2" VerticalAlignment="Top" Height="24" Grid.Column="1"/>
                 <Label x:Name="label_Copy" Content="ArtNet Interface" VerticalAlignment="Center" Margin="0" Height="16" HorizontalContentAlignment="Stretch" Grid.Row="1"/>
                 <Label x:Name="ipInputTX" Margin="0,2,26,2" VerticalAlignment="Top" Height="24" Grid.Column="1" Grid.Row="1"/>
@@ -47,7 +47,6 @@
                         </RadialGradientBrush>
                     </Ellipse.Fill>
                 </Ellipse>
-                <Label x:Name="labelActivity" Content="MIDI Activity" Margin="0" VerticalAlignment="Center" Height="16" Grid.Row="3"/>
                 <Ellipse x:Name="ActivityLED" Margin="0,2" Stroke="Black" HorizontalAlignment="Right" Width="20" Height="20" VerticalAlignment="Center" Grid.Row="3" Grid.Column="1">
                     <Ellipse.Fill>
                         <RadialGradientBrush>
