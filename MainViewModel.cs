@@ -31,8 +31,12 @@ namespace MidiApp
             updateModel();
         }
 
-        private GeometryModel3D m_Lights;
-        private GeometryModel3D m_Bars;
+        public GeometryModel3D m_Lights;
+        public GeometryModel3D m_Bars;
+        public GeometryModel3D m_Markers;
+        public GeometryModel3D m_Theatre;
+        public GeometryModel3D m_Boxes;
+
 
         public void updateModel()
         { 
@@ -67,6 +71,8 @@ namespace MidiApp
 
             // Create a model group
             var modelGroup = new Model3DGroup();
+            var boxesmodelGroup = new Model3DGroup();
+
 
             // Create a mesh builder and add a box to it
             var meshBuilder = new MeshBuilder(false, false);
@@ -80,7 +86,7 @@ namespace MidiApp
             var greenMaterial = MaterialHelper.CreateMaterial(Colors.Green);
             var redMaterial = MaterialHelper.CreateMaterial(Colors.Red);
             var blueMaterial = MaterialHelper.CreateMaterial(Colors.Blue);
-            var insideMaterial = MaterialHelper.CreateMaterial(Colors.Yellow);
+            var yellowMaterial = MaterialHelper.CreateMaterial(Colors.Yellow);
 
             // X - left right, Y - up / down, Z - in / out
 
@@ -220,7 +226,11 @@ namespace MidiApp
 
             mb.AddTriangleFan(points3D, normals);
 
-            modelGroup.Children.Add(new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = blueMaterial, BackMaterial = null });
+            m_Theatre = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = blueMaterial, BackMaterial = null };
+            m_Theatre.SetName("Theatre");
+            modelGroup.Children.Add(m_Theatre);
+
+            mb = new MeshBuilder(true);
 
             if (MainWindow.AppResources.CameraPositions != null)
             {
@@ -233,7 +243,6 @@ namespace MidiApp
                         var p = MainWindow.AppResources.Boxes[i];
                         if (p != null)
                         {
-                            mb = new MeshBuilder(true);
                             Vector3D sz = (Vector3D)(p.Dimensions);
                             Vector3D pos = (Vector3D)(p.Location);
                             Vector3D rot = (Vector3D)(p.Roration);
@@ -247,9 +256,12 @@ namespace MidiApp
 
 
                             mb.AddBox(new Point3D(0, 0, 0), sz.X, sz.Y, sz.Z);
-                            Model3D box = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new MatrixTransform3D(transform), Material = blueMaterial, BackMaterial = null };
-                            modelGroup.Children.Add(box);
+                            m_Boxes = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new MatrixTransform3D(transform), Material = blueMaterial, BackMaterial = null };
+                            m_Boxes.SetName("Box");
+                            boxesmodelGroup.Children.Add(m_Boxes);
+
                         }
+                        modelGroup.Children.Add(boxesmodelGroup);
                     }
                 }
             }
@@ -266,7 +278,11 @@ namespace MidiApp
             mb.AddBox(new Point3D(0, Bar3Offset, Bar3Height + 0.1), Width * 0.9, .1, .1);
 
             m_Bars = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = blueMaterial, BackMaterial = null };
+            m_Bars.SetName("bars");
             modelGroup.Children.Add(m_Bars);
+
+            makeMarker();
+            modelGroup.Children.Add(m_Markers);
 
             mb = new MeshBuilder(true);
             foreach (Follow_Spot spot in MainWindow.m_spots)
@@ -275,22 +291,48 @@ namespace MidiApp
             }
 
             m_Lights = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = redMaterial, BackMaterial = null };
+            m_Lights.SetName("Lights");
             modelGroup.Children.Add(m_Lights);
 
             // Set the property, which will be bound to the Content property of the ModelVisual3D (see MainWindow.xaml)
             Model = modelGroup;
         }
 
+        public void makeMarker()
+        {
+            var yellowMaterial = MaterialHelper.CreateMaterial(Colors.Yellow);
+            if (Model != null)
+            {
+                ((Model3DGroup)Model).Children.Remove(m_Markers);
+            }
+            MeshBuilder mb = new MeshBuilder(true);
+       
+            foreach (Marker marker in MainWindow.m_markers)
+            {
+                mb.AddSphere(marker.position, 0.2);
+            }
+
+            m_Markers = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = yellowMaterial, BackMaterial = null };
+            m_Markers.SetName("Markers");
+            if (Model != null)
+            {
+                ((Model3DGroup)Model).Children.Add(m_Markers);
+            }
+
+        }
+
         public void hideLights()
         {
             ((Model3DGroup)Model).Children.Remove(m_Lights);
             ((Model3DGroup)Model).Children.Remove(m_Bars);
+            ((Model3DGroup)Model).Children.Remove(m_Markers);
         }
 
         public void showLights()
         {
             ((Model3DGroup)Model).Children.Add(m_Lights);
             ((Model3DGroup)Model).Children.Add(m_Bars);
+            ((Model3DGroup)Model).Children.Add(m_Markers);
         }
 
         private Transform3D makeTransform(double X, double Y, double Z, double rotX, double rotY, double rotZ)

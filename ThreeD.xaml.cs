@@ -130,9 +130,34 @@ namespace MidiApp
         {
             viewport3D.Children.Remove(m_spotSphere);
             viewport3D.Children.Remove(m_beam);
-            ((MainViewModel)(DataContext)).hideLights();
+            var pt = new Point3D();
 
-            var pt = viewport3D.FindNearestPoint(p);
+//            ((MainViewModel)(DataContext)).hideLights();
+
+            var hitList = Viewport3DHelper.FindHits(viewport3D.Viewport, p);
+            foreach (var hit in hitList)
+            {
+                if (hit.Visual != null)
+                {
+                    var  b = ((MainViewModel)(DataContext)).m_Bars;
+
+                    Geometry3D geo = hit.Mesh;
+
+                    GeometryModel3D mod = (GeometryModel3D)hit.Model;
+
+                    var tt = mod.Bounds.Equals(b.Bounds);
+
+                    if ((mod.Bounds.Equals(((MainViewModel)(DataContext)).m_Boxes.Bounds))||
+                        (mod.Bounds.Equals(((MainViewModel)(DataContext)).m_Theatre.Bounds)))
+                    {
+                        pt = hit.Position;
+                       break;
+                    }
+                }
+            }
+
+
+            //pt ?= viewport3D.FindNearestPoint(p);
             if (pt != null)
             {
                 Point3D point = (Point3D)pt;
@@ -150,7 +175,7 @@ namespace MidiApp
 
                 ((MeshGeometryVisual3D)m_beam).MeshGeometry = mb.ToMesh();
 
-                ((MainViewModel)(DataContext)).showLights();
+//                ((MainViewModel)(DataContext)).showLights();
                 viewport3D.Children.Add(m_beam);
                 viewport3D.Children.Add(m_spotSphere);
                 return movement;
@@ -234,6 +259,19 @@ namespace MidiApp
                 case Key.NumPad5:
                     cameraSlot = 4;
                     break;
+
+                case Key.M:
+                    PlaceMarker();
+                    break;
+
+                case Key.S:
+                    ((MainWindow)App.Current.MainWindow).SaveMarkers();
+                    break;
+
+                case Key.L:
+                    ((MainWindow)App.Current.MainWindow).LoadMarkers();
+                    ((MainViewModel)(DataContext)).makeMarker();
+                    break;
             }
 
             if (cameraSlot>=0)
@@ -260,7 +298,6 @@ namespace MidiApp
                         MainWindow.AppResources.Remove("CameraPositions");
 
                         MainWindow.AppResources.Add("CameraPositions", (JToken)ds);
-                        win.saveAppResource();
                     }
 
                 }
@@ -272,6 +309,30 @@ namespace MidiApp
             }
         }
 
+        public void PlaceMarker()
+        {
+            Point3D target = MainWindow.m_spots[0].Target;
+
+
+            foreach (Marker existing in MainWindow.m_markers)
+            {
+                if (existing.position.DistanceTo(target)< 1.0)
+                {
+                    MainWindow.m_markers.Remove(existing);
+                    ((MainViewModel)(DataContext)).makeMarker();
+                    return;
+                }
+            }
+
+            Marker m = new Marker();
+            m.clientID = MainWindow.clientID;
+            m.markerID = MainWindow.m_markers.Count;
+            m.position = target;
+
+            MainWindow.m_markers.Add(m);
+
+            ((MainViewModel)(DataContext)).makeMarker();
+        }
         public void setCameraView(int view)
         {
             // Load State

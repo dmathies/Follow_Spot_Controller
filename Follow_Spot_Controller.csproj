@@ -87,9 +87,6 @@
     <Compile Include="ThreeD.xaml.cs">
       <DependentUpon>ThreeD.xaml</DependentUpon>
     </Compile>
-    <Compile Include="XTouchSearchWindow.xaml.cs">
-      <DependentUpon>XTouchSearchWindow.xaml</DependentUpon>
-    </Compile>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -103,10 +100,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="ThreeD.xaml">
-      <SubType>Designer</SubType>
-      <Generator>MSBuild:Compile</Generator>
-    </Page>
-    <Page Include="XTouchSearchWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -151,9 +144,6 @@
     <Resource Include="AudioMIDI.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="TitleDk.png" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="XTouch.png" />
   </ItemGroup>
   <ItemGroup>
@@ -161,6 +151,9 @@
       <Project>{216D055D-904D-4AAA-899A-7F780AEE9AEA}</Project>
       <Name>ArtNet</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="TitleDk.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
