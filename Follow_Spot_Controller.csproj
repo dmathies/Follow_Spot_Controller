@@ -4,7 +4,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{05AB5FDB-A564-4051-9C86-120B06BDDEB6}</ProjectGuid>
+    <ProjectGuid>{2D010A8A-EBF9-498D-B391-E574439822A8}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>MidiApp</RootNamespace>
     <AssemblyName>MidiApp</AssemblyName>
@@ -39,25 +39,25 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="AdonisUI, Version=1.17.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\AdonisUI.1.17.0\lib\net45\AdonisUI.dll</HintPath>
+      <HintPath>..\packages\AdonisUI.1.17.0\lib\net45\AdonisUI.dll</HintPath>
     </Reference>
     <Reference Include="AdonisUI.ClassicTheme, Version=1.17.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\AdonisUI.ClassicTheme.1.17.0\lib\net45\AdonisUI.ClassicTheme.dll</HintPath>
+      <HintPath>..\packages\AdonisUI.ClassicTheme.1.17.0\lib\net45\AdonisUI.ClassicTheme.dll</HintPath>
     </Reference>
     <Reference Include="HelixToolkit, Version=2.17.0.0, Culture=neutral, PublicKeyToken=52aa3500039caf0d, processorArchitecture=MSIL">
-      <HintPath>packages\HelixToolkit.2.17.0\lib\netstandard1.1\HelixToolkit.dll</HintPath>
+      <HintPath>..\packages\HelixToolkit.2.17.0\lib\netstandard1.1\HelixToolkit.dll</HintPath>
     </Reference>
     <Reference Include="HelixToolkit.Wpf, Version=2.17.0.0, Culture=neutral, PublicKeyToken=52aa3500039caf0d, processorArchitecture=MSIL">
-      <HintPath>packages\HelixToolkit.Wpf.2.17.0\lib\net45\HelixToolkit.Wpf.dll</HintPath>
+      <HintPath>..\packages\HelixToolkit.Wpf.2.17.0\lib\net45\HelixToolkit.Wpf.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\packages\Newtonsoft.Json.13.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="Rug.Osc, Version=1.2.5.17694, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\Rug.Osc.1.2.5\lib\Rug.Osc.dll</HintPath>
+      <HintPath>..\packages\Rug.Osc.1.2.5\lib\Rug.Osc.dll</HintPath>
     </Reference>
     <Reference Include="Sanford.Multimedia.Midi, Version=6.6.2.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>packages\Sanford.Multimedia.Midi.6.6.2\lib\net20\Sanford.Multimedia.Midi.dll</HintPath>
+      <HintPath>..\packages\Sanford.Multimedia.Midi.6.6.2\lib\net20\Sanford.Multimedia.Midi.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
@@ -147,9 +147,13 @@
     <Resource Include="XTouch.png" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Haukcode.ArtNet\ArtNet\ArtNet.csproj">
+    <ProjectReference Include="..\..\Haukcode.ArtNet\ArtNet\ArtNet.csproj">
       <Project>{216D055D-904D-4AAA-899A-7F780AEE9AEA}</Project>
       <Name>ArtNet</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\MidiApp.Common\MidiApp.Common.csproj">
+      <Project>{9d047cee-214f-3e8e-2cf9-90582212a0d5}</Project>
+      <Name>MidiApp.Common</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

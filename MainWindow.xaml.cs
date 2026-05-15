@@ -15,7 +15,6 @@ using Haukcode.ArtNet.Packets;
 using Haukcode.ArtNet.Sockets;
 using Haukcode.Sockets;
 using System.Text;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 
 namespace MidiApp
@@ -600,43 +599,51 @@ namespace MidiApp
 
         public void updateDMX()
         {
-            //byte[] packet = new byte[512];
-
-            //foreach (Follow_Spot spot in m_spots)
-            //{
-            //    int PanDMX = (int)Math.Round((((spot.Pan + 270.0) / 540.0) * 65535.0),0);
-            //    int TiltDMX = (int)Math.Round((((spot.Tilt + 135.0) / 270.0) * 65535.0),0);
-
-            //    packet[spot.Address - 1] = (byte)(PanDMX / 256);
-            //    packet[spot.Address] = (byte)(PanDMX % 256);
-            //    packet[spot.Address + 1] = (byte)(TiltDMX / 256);
-            //    packet[spot.Address + 2] = (byte)(TiltDMX % 256);
-            //}
-
-
-            MemoryStream stream = new MemoryStream();
-            BinaryFormatter serializer = new BinaryFormatter();
-            serializer.Serialize(stream, m_spots);
-            byte[] buffer = new byte[stream.Length+3];
-            buffer[0] = 2; // Position Update
-            buffer[1] = (byte)(stream.Length / 256);
-            buffer[2] = (byte)(stream.Length & 0xFF);
-            stream.ToArray();
-
-            Array.Copy(stream.ToArray(), 0, buffer, 3, stream.Length);
-
             try
             {
+                // Convert m_spots to SpotState list and wrap in envelope
+                var states = new System.Collections.Generic.List<MidiApp.Common.SpotState>();
+                foreach (var spot in m_spots)
+                {
+                    states.Add(new MidiApp.Common.SpotState
+                    {
+                        Pan = spot.Pan,
+                        Tilt = spot.Tilt,
+                        Zoom = 0,  // Controller's Follow_Spot doesn't track zoom
+                        HeightOffset = 0.0,  // Controller's Follow_Spot doesn't track height offset
+                        TargetX = spot.Target.X,
+                        TargetY = spot.Target.Y,
+                        TargetZ = spot.Target.Z,
+                        MouseControlID = spot.MouseControlID
+                    });
+                }
+
+                // Wrap in MessageEnvelope for versioning
+                var env = new MidiApp.Common.MessageEnvelope 
+                { 
+                    Version = MidiApp.Common.Protocol.ProtocolVersion, 
+                    Type = MidiApp.Common.MessageType.SpotUpdate, 
+                    Payload = states 
+                };
+
+                string json = Newtonsoft.Json.JsonConvert.SerializeObject(env);
+                byte[] payload = Encoding.UTF8.GetBytes(json);
+                int len = payload.Length;
+
+                byte[] buffer = new byte[len + 3];
+                buffer[0] = (byte)MidiApp.Common.MessageType.SpotUpdate;
+                buffer[1] = (byte)(len / 256);
+                buffer[2] = (byte)(len & 0xFF);
+                Array.Copy(payload, 0, buffer, 3, len);
+
                 if (client.Connected)
-                    client.Send(buffer, (int)stream.Length + 3, SocketFlags.None);
+                    client.Send(buffer, len + 3, SocketFlags.None);
             }
             catch (Exception w)
             {
-                Console.WriteLine("Exceltopm:" + w);
-                client.Close();
+                Console.WriteLine("updateDMX error: " + w);
+                try { client.Close(); } catch { }
             }
-
-            //updateDMX(packet);
         }
 
         // The port number for the remote device.  
@@ -652,6 +659,54 @@ namespace MidiApp
 
         // The response from the remote device.  
         private String response = String.Empty;
+
+        private byte[] SerializeMessageEnvelope(MidiApp.Common.ClientMessage msg)
+        {
+            var env = new MidiApp.Common.MessageEnvelope { Version = MidiApp.Common.Protocol.ProtocolVersion, Type = MidiApp.Common.MessageType.Message, Payload = msg };
+            string json = Newtonsoft.Json.JsonConvert.SerializeObject(env);
+            return Encoding.UTF8.GetBytes(json);
+        }
+
+        public void SendClientMessage(int clientID, String message, String spots, int timeout)
+        {
+            string[] spotParts = spots.Split(',');
+            MidiApp.Common.ClientMessage msg = new MidiApp.Common.ClientMessage
+            {
+                clientID = clientID,
+                message = WebUtility.UrlDecode(message),
+                spots = new int[spotParts.Length]
+            };
+            msg.zooms = new int[msg.spots.Length];
+            msg.HeightOffsets = new double[msg.spots.Length];
+            msg.timeout = timeout;
+
+            for (int i = 0; i < spotParts.Length; i++)
+            {
+                msg.spots[i] = Int32.Parse(spotParts[i]);
+                msg.zooms[i] = 255;
+                msg.HeightOffsets[i] = 0.0;
+            }
+
+            try
+            {
+                byte[] payload = SerializeMessageEnvelope(msg);
+                byte[] buffer = new byte[payload.Length + 3];
+                buffer[0] = (byte)MessageType.Message;
+                buffer[1] = (byte)(payload.Length / 256);
+                buffer[2] = (byte)(payload.Length & 0xFF);
+                Array.Copy(payload, 0, buffer, 3, payload.Length);
+
+                if (client != null && client.Connected)
+                {
+                    client.Send(buffer, buffer.Length, SocketFlags.None);
+                    activityMQ(2);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Failed to send message envelope: " + e.Message);
+            }
+        }
 
         Thread clientThread;
         Socket client;
@@ -732,15 +787,38 @@ namespace MidiApp
                                         recieved += client.Receive(rcv_buffer, recieved, length - recieved, SocketFlags.None);
                                     }
 
-                                    AppResources = Newtonsoft.Json.JsonConvert.DeserializeObject(Encoding.Default.GetString(rcv_buffer));
-                                    updateResources();
-
-                                    if (context != null)
+                                    try
                                     {
-                                        context.Post(delegate (object dummy)
+                                        string json = Encoding.UTF8.GetString(rcv_buffer);
+                                        // defensive: trim any leading non-JSON bytes (sometimes TCP stream framing can slip)
+                                        int start = json.IndexOfAny(new char[] { '{', '[' });
+                                        if (start > 0)
                                         {
-                                            ControllerID.Content = ""+clientID;
-                                        }, null);
+                                            // main app LogDebug not available in controller - write to console
+                                            Console.WriteLine($"Trimmed {start} leading bytes from SpotUpdate payload");
+                                            json = json.Substring(start);
+                                        }
+                                        var env = Newtonsoft.Json.JsonConvert.DeserializeObject<MidiApp.Common.MessageEnvelope>(json);
+                                        if (env == null) throw new Exception("Envelope deserialized null");
+                                        if (env.Version != MidiApp.Common.Protocol.ProtocolVersion) throw new Exception($"Unsupported protocol version: {env.Version}");
+                                        if (env.Type != MidiApp.Common.MessageType.ConfigureClient) throw new Exception($"Unexpected envelope type: {env.Type}");
+
+                                        // Payload is dynamic JSON representing the resources; convert to object then update
+                                        var payloadObj = env.Payload as Newtonsoft.Json.Linq.JObject ?? Newtonsoft.Json.Linq.JObject.FromObject(env.Payload);
+                                        AppResources = payloadObj;
+                                        updateResources();
+
+                                        if (context != null)
+                                        {
+                                            context.Post(delegate (object dummy)
+                                            {
+                                                ControllerID.Content = ""+clientID;
+                                            }, null);
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Failed to parse ConfigureClient envelope: " + ex.Message);
                                     }
                                 }
                                 break;
@@ -755,20 +833,36 @@ namespace MidiApp
                                         recieved += client.Receive(rcv_buffer, recieved, res_length - recieved, SocketFlags.None);
                                     }
 
-                                    BinaryFormatter deserializer = new BinaryFormatter();
-                                    deserializer.AssemblyFormat = System.Runtime.Serialization.Formatters.FormatterAssemblyStyle.Simple;
-
-                                    dynamic newspots = deserializer.Deserialize(new System.IO.MemoryStream(rcv_buffer, false));
-                                    //Console.WriteLine("DMX Update:" + newspots[0]);
-                                    for (int i = 0; i < MainWindow.m_spots.Count; i++)
+                                    // Deserialize JSON spot update envelope (UTF8)
+                                    try
                                     {
-                                        if (MainWindow.m_spots[i].MouseControlID != clientID)
+                                        string json = Encoding.UTF8.GetString(rcv_buffer);
+                                        int start = json.IndexOfAny(new char[] { '{', '[' });
+                                        if (start > 0)
                                         {
-                                            MainWindow.m_spots[i].Pan = newspots[i].Pan;
-                                            MainWindow.m_spots[i].Tilt = newspots[i].Tilt;
-
-                                            MainWindow.m_spots[i].Target = newspots[i].Target;
+                                            Console.WriteLine($"Trimmed {start} leading bytes from Message payload");
+                                            json = json.Substring(start);
                                         }
+                                        var env = Newtonsoft.Json.JsonConvert.DeserializeObject<MidiApp.Common.MessageEnvelope>(json);
+                                        if (env == null) throw new Exception("Envelope deserialized null");
+                                        if (env.Version != MidiApp.Common.Protocol.ProtocolVersion) throw new Exception($"Unsupported protocol version: {env.Version}");
+                                        if (env.Type != MidiApp.Common.MessageType.SpotUpdate) throw new Exception($"Unexpected envelope type: {env.Type}");
+
+                                        var arr = ((Newtonsoft.Json.Linq.JArray)env.Payload).ToObject<System.Collections.Generic.List<MidiApp.Common.SpotState>>();
+                                        for (int i = 0; i < MainWindow.m_spots.Count && i < arr.Count; i++)
+                                        {
+                                            if (MainWindow.m_spots[i].MouseControlID != clientID)
+                                            {
+                                                var s = arr[i];
+                                                MainWindow.m_spots[i].Pan = s.Pan;
+                                                MainWindow.m_spots[i].Tilt = s.Tilt;
+                                                MainWindow.m_spots[i].Target = new System.Windows.Media.Media3D.Point3D(s.TargetX, s.TargetY, s.TargetZ);
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Failed to parse SpotUpdate envelope: " + ex.Message);
                                     }
                                 }
                                 break;
@@ -784,28 +878,65 @@ namespace MidiApp
                                         recieved += client.Receive(rcv_buffer, recieved, res_length - recieved, SocketFlags.None);
                                     }
 
-                                    BinaryFormatter deserializer = new BinaryFormatter();
-                                    deserializer.AssemblyFormat = System.Runtime.Serialization.Formatters.FormatterAssemblyStyle.Simple;
-
-                                    dynamic message = deserializer.Deserialize(new System.IO.MemoryStream(rcv_buffer, false));
-
-                                    if (m_threeDWindow != null)
+                                    // Message payload is a JSON envelope (ClientMessage equivalent)
+                                    try
                                     {
+                                        string json = Encoding.UTF8.GetString(rcv_buffer);
+                                        var env = Newtonsoft.Json.JsonConvert.DeserializeObject<MidiApp.Common.MessageEnvelope>(json);
+                                        if (env == null) throw new Exception("Envelope deserialized null");
+                                        if (env.Version != MidiApp.Common.Protocol.ProtocolVersion) throw new Exception($"Unsupported protocol version: {env.Version}");
+                                        if (env.Type != MidiApp.Common.MessageType.Message) throw new Exception($"Unexpected envelope type: {env.Type}");
+
+                                        var cm = ((Newtonsoft.Json.Linq.JObject)env.Payload).ToObject<MidiApp.Common.ClientMessage>();
                                         if (context != null)
                                         {
                                             context.Post(delegate (object dummy)
                                             {
-                                                if (message.message.Length > 0)
+                                                if (cm.spots?.Length >= 0)
                                                 {
-                                                    m_threeDWindow.MessagePopup.Content = message.message;
-                                                    m_threeDWindow.MessagePopup.Visibility = Visibility.Visible;
+                                                    foreach (Follow_Spot spot in m_spots)
+                                                    {
+                                                        spot.IsLeadSpot = spot.Head == cm.spots[0];
+                                                        spot.MouseControlID = (spot.Head == cm.spots[0]) ? cm.clientID : -1;
+                                                    }
                                                 }
                                                 else
                                                 {
-                                                    m_threeDWindow.MessagePopup.Visibility = Visibility.Hidden;
+                                                    foreach (Follow_Spot spot in m_spots)
+                                                    {
+                                                        spot.IsLeadSpot = false;
+                                                        spot.MouseControlID = -1;
+                                                    }
                                                 }
+
                                             }, null);
                                         }
+
+                                        if (m_threeDWindow != null)
+                                        {
+                                            if (context != null)
+                                            {
+                                                context.Post(delegate (object dummy)
+                                                {
+                                                    // Refresh the 3D view when lead spot changes
+                                                    m_threeDWindow.UpdateModel();
+
+                                                    if (!string.IsNullOrEmpty(cm.message))
+                                                    {
+                                                        m_threeDWindow.MessagePopup.Content = cm.message;
+                                                        m_threeDWindow.MessagePopup.Visibility = Visibility.Visible;
+                                                    }
+                                                    else
+                                                    {
+                                                        m_threeDWindow.MessagePopup.Visibility = Visibility.Hidden;
+                                                    }
+                                                }, null);
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine("Failed to parse Message envelope: " + ex.Message);
                                     }
                                 }
                                 break;

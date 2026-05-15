@@ -284,15 +284,43 @@ namespace MidiApp
             makeMarker();
             modelGroup.Children.Add(m_Markers);
 
-            mb = new MeshBuilder(true);
+            // Create separate meshes for lead spots (yellow) and non-lead spots (red)
+            var leadSpotMeshBuilder = new MeshBuilder(true);
+            var nonLeadSpotMeshBuilder = new MeshBuilder(true);
+
             foreach (Follow_Spot spot in MainWindow.m_spots)
             {
-                mb.AddBox(spot.Location, 0.2,0.2,0.2);
+                if (spot.IsLeadSpot)
+                {
+                    leadSpotMeshBuilder.AddBox(spot.Location, 0.2, 0.2, 0.2);
+                }
+                else
+                {
+                    nonLeadSpotMeshBuilder.AddBox(spot.Location, 0.2, 0.2, 0.2);
+                }
             }
 
-            m_Lights = new GeometryModel3D { Geometry = mb.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = redMaterial, BackMaterial = null };
+            var lightModelGroup = new Model3DGroup();
+
+            // Add non-lead spots in red
+            if (nonLeadSpotMeshBuilder.TriangleIndices.Count > 0)
+            {
+                var nonLeadModel = new GeometryModel3D { Geometry = nonLeadSpotMeshBuilder.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = redMaterial, BackMaterial = null };
+                nonLeadModel.SetName("NonLeadLights");
+                lightModelGroup.Children.Add(nonLeadModel);
+            }
+
+            // Add lead spots in yellow
+            if (leadSpotMeshBuilder.TriangleIndices.Count > 0)
+            {
+                var leadSpotModel = new GeometryModel3D { Geometry = leadSpotMeshBuilder.ToMesh(), Transform = new TranslateTransform3D(0, 0, 0), Material = yellowMaterial, BackMaterial = null };
+                leadSpotModel.SetName("LeadLights");
+                lightModelGroup.Children.Add(leadSpotModel);
+            }
+
+            m_Lights = new GeometryModel3D();
             m_Lights.SetName("Lights");
-            modelGroup.Children.Add(m_Lights);
+            modelGroup.Children.Add(lightModelGroup);
 
             // Set the property, which will be bound to the Content property of the ModelVisual3D (see MainWindow.xaml)
             Model = modelGroup;

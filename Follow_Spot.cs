@@ -18,6 +18,7 @@ namespace MidiApp
         [field: NonSerialized()]
         private int mouseControlID = -1;
 
+        private bool isLeadSpot = false;
         private Point3D target;
         private Point3D currentTarget;
 
@@ -41,7 +42,7 @@ namespace MidiApp
         public double Pan { get => pan; set { pan = value; OnPropertyChanged(); } }
         public double Tilt { get => tilt; set { tilt = value; OnPropertyChanged(); } }
         public int MouseControlID { get => mouseControlID; set { mouseControlID = value; OnPropertyChanged(); } }
-        public bool IsLeadSpot { get => mouseControlID!=-1; set { mouseControlID = 1; OnPropertyChanged(); } }
+        public bool IsLeadSpot { get => isLeadSpot; set { isLeadSpot = value; OnPropertyChanged(); } }
 
         // Create the OnPropertyChanged method to raise the event
         // The calling member's name will be used as the parameter.

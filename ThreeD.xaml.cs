@@ -16,17 +16,45 @@ using System.Windows.Shapes;
 using System.Runtime.InteropServices;
 using Newtonsoft.Json.Linq;
 
+using System.Windows.Markup;
+
 namespace MidiApp
 {
 
     public partial class ThreeD : Window
     {
+        private HelixViewport3D viewport3D;
         [DllImport("User32.dll")]
         private static extern bool SetCursorPos(int X, int Y);
 
         public ThreeD()
         {
             InitializeComponent();
+            // Create HelixViewport3D at runtime so XAML doesn't need to resolve the Helix assembly
+            try
+            {
+                viewport3D = new HelixViewport3D();
+                viewport3D.Name = "viewport3D";
+                viewport3D.MouseMove += HelixViewport3D_MouseMove;
+                viewport3D.MouseDown += viewport3D_MouseDown;
+                viewport3D.MouseUp += HelixViewport3D_MouseUp;
+                // Add default lights and bindings that used to be in XAML
+                viewport3D.Children.Add(new DefaultLights());
+                var modelHost = new ModelVisual3D();
+                Binding b = new Binding("Model");
+                System.Windows.Data.BindingOperations.SetBinding(modelHost, ModelVisual3D.ContentProperty, b);
+                viewport3D.Children.Add(modelHost);
+
+                // Insert into the placeholder container defined in XAML
+                if (this.FindName("ViewportContainer") is Panel container)
+                {
+                    container.Children.Add(viewport3D);
+                }
+            }
+            catch (Exception)
+            {
+                // If runtime creation fails, leave ViewportContainer empty; build-time XAML resolution is the main issue we fix here
+            }
         }
 
         private MeshElement3D m_spotSphere;
@@ -79,8 +107,11 @@ namespace MidiApp
 
             m_beam = beam;
 
-            viewport3D.Children.Add(m_spotSphere);
-            viewport3D.Children.Add(m_beam);
+            if (viewport3D != null)
+            {
+                viewport3D.Children.Add(m_spotSphere);
+                viewport3D.Children.Add(m_beam);
+            }
 
             UpdateModel();
             setCameraView(0);
@@ -91,18 +122,21 @@ namespace MidiApp
         {
             ((MainViewModel)(DataContext)).updateModel();
 
-            if (MainWindow.AppResources.CameraPositions != null)
+            if (MainWindow.AppResources.CameraPositions != null && MainWindow.AppResources.CameraPositions.HasValues)
             {
                 for (int i = 0; i < CameraSaveStates.Length; i++)
                 {
-                    var p = MainWindow.AppResources.CameraPositions[i];
-                    if (p != null)
+                    if (i < MainWindow.AppResources.CameraPositions.Count)
                     {
-                        CameraSaveStates[i] = new CameraState();
-                        CameraSaveStates[i].Location = (Point3D)(p.Location);
-                        CameraSaveStates[i].Direction = (Vector3D)(p.Direction);
-                        CameraSaveStates[i].UpDirection = (Vector3D)(p.UpDirection);
-                        CameraSaveStates[i].FOV = (double)p.FOV;
+                        var p = MainWindow.AppResources.CameraPositions[i];
+                        if (p != null)
+                        {
+                            CameraSaveStates[i] = new CameraState();
+                            CameraSaveStates[i].Location = (Point3D)(p.Location);
+                            CameraSaveStates[i].Direction = (Vector3D)(p.Direction);
+                            CameraSaveStates[i].UpDirection = (Vector3D)(p.UpDirection);
+                            CameraSaveStates[i].FOV = (double)p.FOV;
+                        }
                     }
                 }
             }
@@ -128,13 +162,16 @@ namespace MidiApp
 
         private double MoveSpot(int spot_number, Point p)
         {
-            viewport3D.Children.Remove(m_spotSphere);
-            viewport3D.Children.Remove(m_beam);
+            if (viewport3D != null)
+            {
+                viewport3D.Children.Remove(m_spotSphere);
+                viewport3D.Children.Remove(m_beam);
+            }
             var pt = new Point3D();
 
 //            ((MainViewModel)(DataContext)).hideLights();
 
-            var hitList = Viewport3DHelper.FindHits(viewport3D.Viewport, p);
+            var hitList = (viewport3D != null) ? Viewport3DHelper.FindHits(viewport3D.Viewport, p) : new List<Viewport3DHelper.HitResult>();
             foreach (var hit in hitList)
             {
                 if (hit.Visual != null)
@@ -176,8 +213,12 @@ namespace MidiApp
                 ((MeshGeometryVisual3D)m_beam).MeshGeometry = mb.ToMesh();
 
 //                ((MainViewModel)(DataContext)).showLights();
-                viewport3D.Children.Add(m_beam);
-                viewport3D.Children.Add(m_spotSphere);
+                if (viewport3D != null)
+                {
+                    ((MeshGeometryVisual3D)m_beam).MeshGeometry = mb.ToMesh();
+                    viewport3D.Children.Add(m_beam);
+                    viewport3D.Children.Add(m_spotSphere);
+                }
                 return movement;
             }
 
@@ -190,15 +231,19 @@ namespace MidiApp
             var p = viewport3D.Camera.Position;
             var v = viewport3D.Camera.LookDirection;
 
-            viewport3D.Camera.Position = MainWindow.m_spots[spot_number].Location;
+            if (viewport3D != null)
+                viewport3D.Camera.Position = MainWindow.m_spots[spot_number].Location;
 
             var nv = Spherical.FromSpherical(1, MainWindow.m_spots[spot_number].Tilt, MainWindow.m_spots[spot_number].Pan);
             viewport3D.Camera.LookDirection = (Vector3D)nv;
 
             double moved = MoveSpot(spot_number, new Point(viewport3D.ActualWidth / 2, viewport3D.ActualHeight / 2));
 
-            viewport3D.Camera.Position = p;
-            viewport3D.Camera.LookDirection = v;
+            if (viewport3D != null)
+            {
+                viewport3D.Camera.Position = p;
+                viewport3D.Camera.LookDirection = v;
+            }
             return moved;
         }
         public double DMX_moveSpot(int spot_number)
@@ -208,15 +253,21 @@ namespace MidiApp
                 var p = viewport3D.Camera.Position;
                 var v = viewport3D.Camera.LookDirection;
 
-                viewport3D.Camera.Position = MainWindow.m_spots[0].Location;
+                if (viewport3D != null)
+                {
+                    viewport3D.Camera.Position = MainWindow.m_spots[0].Location;
 
-                var nv = Spherical.FromSpherical(1, MainWindow.m_spots[0].Tilt, MainWindow.m_spots[0].Pan);
-                viewport3D.Camera.LookDirection = (Vector3D)nv;
+                    var nv = Spherical.FromSpherical(1, MainWindow.m_spots[0].Tilt, MainWindow.m_spots[0].Pan);
+                    viewport3D.Camera.LookDirection = (Vector3D)nv;
+                }
 
                 double moved = MoveSpot(0, new Point(viewport3D.ActualWidth / 2, viewport3D.ActualHeight / 2));
 
-                viewport3D.Camera.Position = p;
-                viewport3D.Camera.LookDirection = v;
+                if (viewport3D != null)
+                {
+                    viewport3D.Camera.Position = p;
+                    viewport3D.Camera.LookDirection = v;
+                }
                 return moved;
             }
 

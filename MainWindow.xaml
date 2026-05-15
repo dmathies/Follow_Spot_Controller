@@ -8,9 +8,9 @@
         xmlns:local="clr-namespace:MidiApp"
         mc:Ignorable="d"
         Title="MacicQ Follow Spot Controller" Loaded="Window_Loaded" Closed="Window_Closed" PreviewLostKeyboardFocus="AdonisWindow_PreviewLostKeyboardFocus" d:DesignWidth="672" Width="680"  Height="551" MinWidth="400">
-    <Window.Style>
+    <adonisControls:AdonisWindow.Style>
         <Style TargetType="Window" BasedOn="{StaticResource {x:Type Window}}"/>
-    </Window.Style>
+    </adonisControls:AdonisWindow.Style>
     <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
